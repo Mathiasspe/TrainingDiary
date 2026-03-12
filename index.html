@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>Training Diary</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-card: #14141f;
+  --bg-card-hover: #1a1a28;
+  --bg-input: #1e1e2e;
+  --bg-modal: #111119;
+  --text-primary: #eeeef0;
+  --text-secondary: #8888a0;
+  --text-muted: #555568;
+  --accent: #6ee7b7;
+  --accent-dim: #6ee7b733;
+  --accent-glow: #6ee7b744;
+  --danger: #f87171;
+  --danger-dim: #f8717133;
+  --warning: #fbbf24;
+  --pr-gold: #fcd34d;
+  --border: #2a2a3a;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { 
+  height: 100%; 
+  overflow: hidden;
+  background: var(--bg-primary); 
+  color: var(--text-primary); 
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  /* Prevent iOS bounce/overscroll */
+  overscroll-behavior: none;
+  /* Prevent text selection on UI elements */
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Allow text selection in inputs */
+input, textarea { -webkit-user-select: text; user-select: text; }
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* ── NAV TABS ── */
+.nav-tabs {
+  display: flex;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 6px 0;
+  padding-bottom: calc(6px + var(--safe-bottom));
+  flex-shrink: 0;
+  z-index: 100;
+}
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+  min-height: 52px;
+}
+.nav-tab.active { color: var(--accent); }
+.nav-tab svg { width: 22px; height: 22px; }
+
+/* ── VIEWS ── */
+.view {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: none;
+  -webkit-overflow-scrolling: touch;
+}
+.view.active { display: block; }
+.view-pad { padding: 16px 16px 24px; }
+
+/* ── HEADER ── */
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 10;
+}
+.view-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.header-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.header-btn:hover { background: var(--bg-card-hover); }
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.15s;
+}
+.card:active { transform: scale(0.985); }
+.card-clickable { cursor: pointer; }
+.card-clickable:hover { background: var(--bg-card-hover); }
+
+/* ── FORM ELEMENTS ── */
+input, select, textarea {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+select { appearance: none; cursor: pointer; }
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+  min-height: 52px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: #0a0a0f; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger-dim); color: var(--danger); }
+.btn-sm { padding: 8px 14px; font-size: 13px; width: auto; }
+.btn-icon {
+  width: 36px; height: 36px; padding: 0;
+  border-radius: 50%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px;
+}
+
+/* ── WORKOUT LOG ── */
+.exercise-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.exercise-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.exercise-name {
+  font-size: 16px;
+  font-weight: 700;
+  flex: 1;
+}
+.exercise-name-input {
+  font-size: 16px;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  border-radius: 0;
+  padding: 2px 0;
+  color: var(--text-primary);
+  width: 100%;
+}
+.exercise-body { padding: 0 16px 14px; }
+
+.set-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr 1fr 40px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.set-num {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-input);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.set-input {
+  padding: 12px 6px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 16px;
+  min-height: 48px;
+}
+.set-labels {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr 1fr 40px;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 0;
+}
+.set-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+.remove-set-btn {
+  width: 40px; height: 40px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 20px;
+  transition: all 0.15s;
+}
+.remove-set-btn:active { color: var(--danger); background: var(--danger-dim); }
+
+.add-set-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-height: 48px;
+}
+.add-set-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── PR BADGE ── */
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #fcd34d33, #f59e0b22);
+  color: var(--pr-gold);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+}
+.pr-badge::before { content: '🏆'; font-size: 10px; }
+
+/* ── REST TIMER ── */
+.rest-timer-bar {
+  position: fixed;
+  bottom: 80px;
+  left: 12px;
+  right: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 90;
+  box-shadow: 0 -4px 20px #0008;
+}
+.rest-timer-bar.active { display: flex; }
+.timer-display {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.timer-controls { display: flex; gap: 8px; }
+.timer-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.timer-btn.active-timer { border-color: var(--accent); color: var(--accent); }
+.timer-close {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 20px; cursor: pointer; padding: 4px;
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000cc;
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--bg-modal);
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 24px 20px;
+  padding-bottom: calc(24px + var(--safe-bottom));
+  animation: slideUp 0.25s ease-out;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle {
+  width: 40px; height: 4px;
+  background: var(--text-muted);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+.modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+.form-group { margin-bottom: 16px; }
+
+/* ── HISTORY ── */
+.history-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 20px 0 10px;
+  font-family: var(--font-mono);
+}
+.history-workout-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.history-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── PROGRESS ── */
+.exercise-select-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.exercise-chip {
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.exercise-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.chart-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+canvas { max-width: 100%; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* ── TEMPLATES ── */
+.template-exercises {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.template-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ── EXERCISE CATEGORIES ── */
+.category-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.category-filters::-webkit-scrollbar { display: none; }
+.category-filter {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.category-filter.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.cat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cat-dot-push { background: #f472b6; }
+.cat-dot-pull { background: #60a5fa; }
+.cat-dot-legs { background: #fb923c; }
+.cat-dot-none { background: var(--text-muted); }
+.cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+.cat-badge-push { color: #f472b6; background: #f472b618; }
+.cat-badge-pull { color: #60a5fa; background: #60a5fa18; }
+.cat-badge-legs { color: #fb923c; background: #fb923c18; }
+
+/* ── PROGRESSION SUGGESTION ── */
+.suggestion-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #6ee7b712, #6ee7b708);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.suggestion-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.suggestion-text {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.suggestion-detail {
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.suggestion-apply {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.suggestion-apply:active { transform: scale(0.95); }
+.exercise-settings-btn {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.exercise-settings-btn:hover { color: var(--accent); }
+.increment-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-input);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 15px; line-height: 1.6; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 300;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.pr-toast { border-color: var(--pr-gold); color: var(--pr-gold); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ═══ VIEWS ═══ -->
+  <div id="view-log" class="view active">
+    <div class="view-header">
+      <div class="view-title">Workout</div>
+      <div style="display:flex; gap:8px;">
+        <button class="header-btn" onclick="toggleRestTimer()" title="Rest timer">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><polyline points="10,5 10,10 13,12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="view-pad" id="log-content"></div>
+  </div>
+
+  <div id="view-history" class="view">
+    <div class="view-header"><div class="view-title">History</div></div>
+    <div class="view-pad" id="history-content"></div>
+  </div>
+
+  <div id="view-progress" class="view">
+    <div class="view-header"><div class="view-title">Progress</div></div>
+    <div class="view-pad" id="progress-content"></div>
+  </div>
+
+  <div id="view-templates" class="view">
+    <div class="view-header">
+      <div class="view-title">Templates</div>
+      <button class="header-btn" onclick="openNewTemplateModal()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+      </button>
+    </div>
+    <div class="view-pad" id="templates-content"></div>
+  </div>
+
+  <!-- REST TIMER -->
+  <div class="rest-timer-bar" id="rest-timer">
+    <div class="timer-display" id="timer-display">1:30</div>
+    <div class="timer-controls">
+      <button class="timer-btn" onclick="setTimerPreset(60)">1:00</button>
+      <button class="timer-btn active-timer" onclick="setTimerPreset(90)">1:30</button>
+      <button class="timer-btn" onclick="setTimerPreset(120)">2:00</button>
+      <button class="timer-btn" onclick="setTimerPreset(180)">3:00</button>
+      <button class="timer-close" onclick="toggleRestTimer()">✕</button>
+    </div>
+  </div>
+
+  <!-- ═══ NAV ═══ -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchView('log')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Log
+    </button>
+    <button class="nav-tab" onclick="switchView('history')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      History
+    </button>
+    <button class="nav-tab" onclick="switchView('progress')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+      Progress
+    </button>
+    <button class="nav-tab" onclick="switchView('templates')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Templates
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════
+//  FIREBASE CONFIG — Replace with your Firebase project info
+// ════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAAKnNnb3eWNMRGLeMRyArNwWBFBHJsCxE",
+  authDomain: "training-diary-e3b5e.firebaseapp.com",
+  databaseURL: "https://training-diary-e3b5e-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "training-diary-e3b5e",
+  storageBucket: "training-diary-e3b5e.firebasestorage.app",
+  messagingSenderId: "253320807906",
+  appId: "1:253320807906:web:8e148002f931074f8ea5bb"
+};
+
+// ── Init Firebase ──
+let db;
+let useFirebase = false;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  // Quick check if config is real
+  if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    useFirebase = true;
+  }
+} catch(e) { console.log('Firebase not configured, using localStorage'); }
+
+// ════════════════════════════════════════════════════════════
+//  DATA LAYER — Firebase with localStorage fallback
+// ════════════════════════════════════════════════════════════
+const DATA_PREFIX = 'training_diary_';
+
+async function saveData(path, data) {
+  if (useFirebase) {
+    await db.ref(path).set(data);
+  }
+  localStorage.setItem(DATA_PREFIX + path.replace(/\//g, '_'), JSON.stringify(data));
+}
+
+async function loadData(path) {
+  if (useFirebase) {
+    const snap = await db.ref(path).once('value');
+    if (snap.exists()) return snap.val();
+  }
+  const local = localStorage.getItem(DATA_PREFIX + path.replace(/\//g, '_'));
+  return local ? JSON.parse(local) : null;
+}
+
+async function pushData(path, data) {
+  const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  if (useFirebase) {
+    const ref = db.ref(path).push();
+    await ref.set(data);
+    return ref.key;
+  }
+  const existing = await loadData(path) || {};
+  existing[id] = data;
+  await saveData(path, existing);
+  return id;
+}
+
+async function deleteData(path) {
+  if (useFirebase) {
+    await db.ref(path).remove();
+  }
+  localStorage.removeItem(DATA_PREFIX + path.replace(/\//g, '_'));
+}
+
+// ════════════════════════════════════════════════════════════
+//  APP STATE
+// ════════════════════════════════════════════════════════════
+let currentWorkout = null;   // { name, date, exercises: [{ name, sets: [{ weight, reps, rpe }] }] }
+let workoutHistory = [];     // sorted desc by date
+let templates = [];
+let allExerciseNames = [];
+let exerciseSettings = {};   // { "bench press": { increment: 2.5, targetReps: 10 }, ... }
+let activeCharts = [];       // chart instances for cleanup
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+async function init() {
+  await loadHistory();
+  await loadTemplates();
+  await loadExerciseSettings();
+  buildExerciseNameList();
+  renderLog();
+  renderHistory();
+  renderTemplates();
+  renderProgress();
+}
+
+async function loadHistory() {
+  const data = await loadData('workouts');
+  if (data) {
+    workoutHistory = Object.entries(data).map(([id, w]) => ({ id, ...w }));
+    workoutHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+}
+
+async function loadTemplates() {
+  const data = await loadData('templates');
+  if (data) {
+    templates = Object.entries(data).map(([id, t]) => ({ id, ...t }));
+  }
+}
+
+async function loadExerciseSettings() {
+  const data = await loadData('exerciseSettings');
+  if (data) exerciseSettings = data;
+}
+
+async function saveExerciseSettings() {
+  await saveData('exerciseSettings', exerciseSettings);
+}
+
+function getExerciseSetting(name) {
+  if (!name) return { increment: 2.5, targetReps: 10, category: '' };
+  const key = name.toLowerCase().trim();
+  return exerciseSettings[key] || { increment: 2.5, targetReps: 10, category: '' };
+}
+
+function getExerciseCategory(name) {
+  return getExerciseSetting(name).category || '';
+}
+
+function getCategoryLabel(cat) {
+  const labels = { push: 'Push', pull: 'Pull', legs: 'Legs' };
+  return labels[cat] || '';
+}
+
+function getCategoryDotClass(cat) {
+  const cls = { push: 'cat-dot-push', pull: 'cat-dot-pull', legs: 'cat-dot-legs' };
+  return cls[cat] || 'cat-dot-none';
+}
+
+function getCategoryBadge(name) {
+  const cat = getExerciseCategory(name);
+  if (!cat) return '';
+  const cls = { push: 'cat-badge-push', pull: 'cat-badge-pull', legs: 'cat-badge-legs' };
+  return `<span class="cat-badge ${cls[cat] || ''}">${getCategoryLabel(cat)}</span>`;
+}
+
+function buildExerciseNameList() {
+  const names = new Set();
+  workoutHistory.forEach(w => {
+    (w.exercises || []).forEach(e => names.add(e.name));
+  });
+  allExerciseNames = [...names].sort();
+}
+
+// ════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════════════════
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-tab')[['log','history','progress','templates'].indexOf(name)].classList.add('active');
+  if (name === 'progress') renderProgress();
+  if (name === 'history') renderHistory();
+}
+
+// ════════════════════════════════════════════════════════════
+//  LOG VIEW
+// ════════════════════════════════════════════════════════════
+function renderLog() {
+  const el = document.getElementById('log-content');
+  if (!currentWorkout) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🏋️</div>
+        <div class="empty-text">No active workout<br><br>Start from a template or begin an empty workout</div>
+      </div>
+      <button class="btn btn-primary" onclick="startEmptyWorkout()" style="margin-top:16px;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="9" y1="3" x2="9" y2="15"/><line x1="3" y1="9" x2="15" y2="9"/></svg>
+        Start Empty Workout
+      </button>
+      <button class="btn btn-secondary" onclick="switchView('templates')" style="margin-top:8px;">
+        Choose Template
+      </button>
+      ${renderLastWorkoutQuickStart()}
+    `;
+    return;
+  }
+
+  let html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <input type="text" value="${esc(currentWorkout.name)}" 
+        onchange="currentWorkout.name=this.value" 
+        style="font-size:18px;font-weight:700;background:transparent;border:none;padding:0;color:var(--text-primary);width:100%;"
+        placeholder="Workout name">
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:12px;">
+        ${formatDate(currentWorkout.date)}
+      </span>
+    </div>
+  `;
+
+  currentWorkout.exercises.forEach((ex, ei) => {
+    const prevBest = getPreviousBest(ex.name);
+    const suggestion = getProgressionSuggestion(ex.name);
+    const settings = getExerciseSetting(ex.name);
+    html += `
+      <div class="exercise-block">
+        <div class="exercise-header">
+          <div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+            <input type="text" class="exercise-name-input" value="${esc(ex.name)}" 
+              onchange="renameExercise(${ei}, this.value)" 
+              placeholder="Exercise name" list="exercise-names"
+              style="flex:1;min-width:120px;">
+            ${getCategoryBadge(ex.name)}
+          </div>
+          ${ex.name.trim() ? `<button class="exercise-settings-btn" onclick="openExerciseSettings('${esc(ex.name)}')" title="Exercise settings">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>` : ''}
+          <button class="btn-icon" onclick="removeExercise(${ei})" style="margin-left:4px;flex-shrink:0;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+          </button>
+        </div>
+        <div class="exercise-body">
+          ${suggestion ? `
+            <div class="suggestion-box">
+              <div class="suggestion-icon">${suggestion.icon}</div>
+              <div style="flex:1;">
+                <div class="suggestion-text">${suggestion.text}</div>
+                <div class="suggestion-detail">${suggestion.detail}</div>
+              </div>
+              ${suggestion.weight ? `<button class="suggestion-apply" onclick="applySuggestion(${ei}, ${suggestion.weight}, ${suggestion.reps})">Apply</button>` : ''}
+            </div>
+          ` : prevBest ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-family:var(--font-mono);">
+            Previous best: ${prevBest.weight}kg × ${prevBest.reps} reps
+          </div>` : ''}
+          <div class="set-labels">
+            <div class="set-label">Set</div>
+            <div class="set-label">Kg</div>
+            <div class="set-label">Reps</div>
+            <div class="set-label">RPE</div>
+            <div></div>
+          </div>
+          ${ex.sets.map((s, si) => `
+            <div class="set-row">
+              <div class="set-num">${si+1}</div>
+              <input type="number" class="set-input" value="${s.weight||''}" placeholder="0" 
+                inputmode="decimal" onchange="updateSet(${ei},${si},'weight',this.value)">
+              <input type="number" class="set-input" value="${s.reps||''}" placeholder="0" 
+                inputmode="numeric" onchange="updateSet(${ei},${si},'reps',this.value)">
+              <input type="number" class="set-input" value="${s.rpe||''}" placeholder="—" 
+                inputmode="decimal" min="1" max="10" step="0.5" onchange="updateSet(${ei},${si},'rpe',this.value)">
+              <button class="remove-set-btn" onclick="removeSet(${ei},${si})">−</button>
+            </div>
+          `).join('')}
+          <button class="add-set-btn" onclick="addSet(${ei})">+ Add Set</button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    <button class="btn btn-secondary" onclick="addExercise()" style="margin-bottom:10px;">
+      + Add Exercise
+    </button>
+    <datalist id="exercise-names">
+      ${allExerciseNames.map(n => `<option value="${esc(n)}">`).join('')}
+    </datalist>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="finishWorkout()">✓ Finish</button>
+      <button class="btn btn-danger" onclick="cancelWorkout()">Cancel</button>
+    </div>
+    <button class="btn btn-secondary" onclick="saveWorkoutAsTemplate()" style="margin-top:8px;">
+      📋 Save as Template
+    </button>
+    <div style="height:24px;"></div>
+  `;
+  el.innerHTML = html;
+}
+
+function renderLastWorkoutQuickStart() {
+  if (workoutHistory.length === 0) return '';
+  const last = workoutHistory[0];
+  return `
+    <button class="btn btn-secondary" onclick='repeatLastWorkout()' style="margin-top:8px;">
+      ↻ Repeat: ${esc(last.name)}
+    </button>
+  `;
+}
+
+function startEmptyWorkout() {
+  currentWorkout = {
+    name: 'Workout',
+    date: new Date().toISOString(),
+    exercises: [{ name: '', sets: [{ weight: '', reps: '', rpe: '' }] }]
+  };
+  renderLog();
+}
+
+function startFromTemplate(idx) {
+  const t = templates[idx];
+  currentWorkout = {
+    name: t.name,
+    date: new Date().toISOString(),
+    exercises: t.exercises.map(e => ({
+      name: e.name,
+      sets: Array.from({ length: e.defaultSets || 3 }, () => ({ weight: '', reps: '', rpe: '' }))
+    }))
+  };
+  // Pre-fill last used weights
+  currentWorkout.exercises.forEach(ex => {
+    const prev = getPreviousBest(ex.name);
+    if (prev) {
+      ex.sets.forEach(s => { s.weight = prev.weight; });
+    }
+  });
+  switchView('log');
+  renderLog();
+}
+
+function repeatLastWorkout() {
+  const last = workoutHistory[0];
+  currentWorkout = {
+    name: last.name,
+    date: new Date().toISOString(),
+    exercises: (last.exercises || []).map(e => ({
+      name: e.name,
+      sets: (e.sets || []).map(s => ({ weight: s.weight, reps: '', rpe: '' }))
+    }))
+  };
+  renderLog();
+}
+
+function addExercise() {
+  currentWorkout.exercises.push({ name: '', sets: [{ weight: '', reps: '', rpe: '' }] });
+  renderLog();
+  // Focus the new exercise name input
+  const inputs = document.querySelectorAll('.exercise-name-input');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removeExercise(ei) {
+  currentWorkout.exercises.splice(ei, 1);
+  renderLog();
+}
+
+function renameExercise(ei, name) {
+  currentWorkout.exercises[ei].name = name;
+}
+
+function addSet(ei) {
+  const sets = currentWorkout.exercises[ei].sets;
+  const lastSet = sets.length > 0 ? { ...sets[sets.length - 1] } : { weight: '', reps: '', rpe: '' };
+  // Keep weight, clear reps and rpe
+  sets.push({ weight: lastSet.weight, reps: '', rpe: '' });
+  renderLog();
+}
+
+function removeSet(ei, si) {
+  currentWorkout.exercises[ei].sets.splice(si, 1);
+  renderLog();
+}
+
+function updateSet(ei, si, field, val) {
+  currentWorkout.exercises[ei].sets[si][field] = val ? parseFloat(val) : '';
+}
+
+async function finishWorkout() {
+  if (!currentWorkout) return;
+  // Clean up empty exercises
+  currentWorkout.exercises = currentWorkout.exercises.filter(e => 
+    e.name.trim() && e.sets.some(s => s.weight || s.reps)
+  );
+  if (currentWorkout.exercises.length === 0) {
+    showToast('Add at least one exercise with data');
+    return;
+  }
+
+  // Check for PRs
+  const prs = checkForPRs(currentWorkout);
+
+  const workoutData = {
+    name: currentWorkout.name,
+    date: currentWorkout.date,
+    exercises: currentWorkout.exercises
+  };
+
+  await pushData('workouts', workoutData);
+  
+  currentWorkout = null;
+  await loadHistory();
+  buildExerciseNameList();
+  renderLog();
+  renderHistory();
+
+  if (prs.length > 0) {
+    showToast(`🏆 New PR: ${prs.join(', ')}!`, true);
+  } else {
+    showToast('Workout saved!');
+  }
+}
+
+function cancelWorkout() {
+  if (currentWorkout && currentWorkout.exercises.some(e => e.sets.some(s => s.weight || s.reps))) {
+    openConfirmModal('Discard this workout?', () => {
+      currentWorkout = null;
+      renderLog();
+    });
+  } else {
+    currentWorkout = null;
+    renderLog();
+  }
+}
+
+function saveWorkoutAsTemplate() {
+  if (!currentWorkout) return;
+  // Filter to exercises that have a name
+  const exercises = currentWorkout.exercises.filter(e => e.name.trim());
+  if (exercises.length === 0) {
+    showToast('Add at least one named exercise');
+    return;
+  }
+
+  const suggestedName = currentWorkout.name || 'My Template';
+  const html = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">Save as Template</div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5;">
+      This saves the current exercises and set counts as a reusable template. Weights are not included — they'll be pre-filled from your history when you start the template.
+    </p>
+    <div class="form-group">
+      <label>Template Name</label>
+      <input type="text" id="save-tpl-name" value="${esc(suggestedName)}" placeholder="e.g. Push Day">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label>Exercises</label>
+      ${exercises.map((e, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 0;${i < exercises.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
+          <span style="flex:1;font-weight:600;">${esc(e.name)}</span>
+          <span style="font-family:var(--font-mono);font-size:13px;color:var(--text-secondary);">${e.sets.length} sets</span>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-primary" onclick="confirmSaveAsTemplate()">Save Template</button>
+  `;
+  openModal(html);
+}
+
+async function confirmSaveAsTemplate() {
+  const name = document.getElementById('save-tpl-name').value.trim();
+  if (!name) { showToast('Enter a template name'); return; }
+
+  const exercises = currentWorkout.exercises
+    .filter(e => e.name.trim())
+    .map(e => ({ name: e.name, defaultSets: e.sets.length }));
+
+  await pushData('templates', { name, exercises });
+  await loadTemplates();
+  renderTemplates();
+  closeModalDirect();
+  showToast('Template saved!');
+}
+
+// ════════════════════════════════════════════════════════════
+//  PR DETECTION
+// ════════════════════════════════════════════════════════════
+function getPreviousBest(exerciseName) {
+  if (!exerciseName) return null;
+  const name = exerciseName.toLowerCase().trim();
+  let best = null;
+  for (const w of workoutHistory) {
+    for (const e of (w.exercises || [])) {
+      if (e.name.toLowerCase().trim() === name) {
+        for (const s of (e.sets || [])) {
+          const weight = parseFloat(s.weight) || 0;
+          const reps = parseInt(s.reps) || 0;
+          if (weight > 0 && reps > 0) {
+            if (!best || weight > best.weight || (weight === best.weight && reps > best.reps)) {
+              best = { weight, reps };
+            }
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function checkForPRs(workout) {
+  const prs = [];
+  for (const ex of workout.exercises) {
+    const prevBest = getPreviousBest(ex.name);
+    for (const s of ex.sets) {
+      const w = parseFloat(s.weight) || 0;
+      const r = parseInt(s.reps) || 0;
+      if (w > 0 && r > 0) {
+        if (!prevBest || w > prevBest.weight || (w === prevBest.weight && r > prevBest.reps)) {
+          prs.push(ex.name);
+          break;
+        }
+      }
+    }
+  }
+  return prs;
+}
+
+// ════════════════════════════════════════════════════════════
+//  PROGRESSION ENGINE
+// ════════════════════════════════════════════════════════════
+function getProgressionSuggestion(exerciseName) {
+  if (!exerciseName || !exerciseName.trim()) return null;
+  
+  const nameLower = exerciseName.toLowerCase().trim();
+  const settings = getExerciseSetting(exerciseName);
+  const { increment, targetReps } = settings;
+  
+  // Get the last 3 sessions for this exercise
+  const sessions = [];
+  for (const w of workoutHistory) {
+    for (const e of (w.exercises || [])) {
+      if (e.name.toLowerCase().trim() === nameLower) {
+        const workingSets = (e.sets || []).filter(s => (parseFloat(s.weight) || 0) > 0 && (parseInt(s.reps) || 0) > 0);
+        if (workingSets.length > 0) {
+          sessions.push({
+            date: w.date,
+            sets: workingSets,
+            maxWeight: Math.max(...workingSets.map(s => parseFloat(s.weight))),
+            avgReps: workingSets.reduce((a, s) => a + parseInt(s.reps), 0) / workingSets.length,
+            allHitTarget: workingSets.every(s => parseInt(s.reps) >= targetReps),
+            avgRpe: workingSets.filter(s => s.rpe).length > 0 
+              ? workingSets.filter(s => s.rpe).reduce((a, s) => a + parseFloat(s.rpe), 0) / workingSets.filter(s => s.rpe).length 
+              : null,
+            totalSets: workingSets.length
+          });
+        }
+        break; // one match per workout
+      }
+    }
+    if (sessions.length >= 3) break;
+  }
+  
+  if (sessions.length === 0) return null;
+  
+  const last = sessions[0];
+  const lastWeight = last.maxWeight;
+  
+  // ── RULE 1: All sets hit target reps? → Increase weight
+  if (last.allHitTarget) {
+    const newWeight = lastWeight + increment;
+    // Check if RPE data supports it (if available)
+    const rpeConfirm = last.avgRpe !== null ? last.avgRpe <= 8.5 : true;
+    
+    if (rpeConfirm) {
+      return {
+        icon: '⬆️',
+        text: `Go up → ${newWeight} kg × ${targetReps} reps`,
+        detail: `Hit ${targetReps}+ reps on all sets last time${last.avgRpe !== null ? ` at RPE ${last.avgRpe.toFixed(1)}` : ''}. Ready to increase.`,
+        weight: newWeight,
+        reps: targetReps
+      };
+    } else {
+      // Hit reps but RPE was very high — consolidate
+      return {
+        icon: '🔄',
+        text: `Stay at ${lastWeight} kg × ${targetReps} reps`,
+        detail: `Hit your reps but RPE was ${last.avgRpe.toFixed(1)} — consolidate before adding weight.`,
+        weight: lastWeight,
+        reps: targetReps
+      };
+    }
+  }
+  
+  // ── RULE 2: Didn't hit target on all sets → stay and build reps
+  const avgRepsRounded = Math.round(last.avgReps * 10) / 10;
+  const repTarget = Math.min(Math.ceil(last.avgReps + 1), targetReps);
+  
+  // Check if stalled (same weight & similar reps for 3 sessions)
+  if (sessions.length >= 3) {
+    const allSameWeight = sessions.every(s => s.maxWeight === lastWeight);
+    const allSimilarReps = sessions.every(s => Math.abs(s.avgReps - last.avgReps) <= 0.5);
+    
+    if (allSameWeight && allSimilarReps && last.avgReps < targetReps) {
+      // Stalled for 3 sessions
+      const deloadWeight = Math.round((lastWeight * 0.9) / increment) * increment;
+      return {
+        icon: '🔁',
+        text: `Deload → ${deloadWeight} kg × ${targetReps} reps`,
+        detail: `Stalled at ${lastWeight}kg for 3 sessions (avg ${avgRepsRounded} reps). Drop 10%, build back up.`,
+        weight: deloadWeight,
+        reps: targetReps
+      };
+    }
+  }
+  
+  // ── RULE 3: Standard — stay and add reps
+  return {
+    icon: '💪',
+    text: `Stay at ${lastWeight} kg — aim for ${repTarget} reps`,
+    detail: `Averaged ${avgRepsRounded} reps last time. Build to ${targetReps} across all sets, then increase.`,
+    weight: lastWeight,
+    reps: repTarget
+  };
+}
+
+function applySuggestion(exerciseIdx, weight, reps) {
+  const ex = currentWorkout.exercises[exerciseIdx];
+  ex.sets.forEach(s => {
+    s.weight = weight;
+  });
+  renderLog();
+  showToast('Suggestion applied');
+}
+
+function openExerciseSettings(exerciseName) {
+  const key = exerciseName.toLowerCase().trim();
+  const current = exerciseSettings[key] || { increment: 2.5, targetReps: 10, category: '' };
+  
+  const html = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">${esc(exerciseName)}</div>
+    <div class="form-group">
+      <label>Category</label>
+      <div style="display:flex;gap:8px;">
+        ${[
+          { val: 'push', label: 'Push', dot: 'cat-dot-push' },
+          { val: 'pull', label: 'Pull', dot: 'cat-dot-pull' },
+          { val: 'legs', label: 'Legs', dot: 'cat-dot-legs' }
+        ].map(c => `
+          <button class="exercise-chip ${current.category === c.val ? 'active' : ''}" 
+            onclick="selectCategory(this, '${c.val}')" style="flex:1;text-align:center;justify-content:center;">
+            <span class="cat-dot ${c.dot}"></span> ${c.label}
+          </button>
+        `).join('')}
+      </div>
+      <input type="hidden" id="settings-category" value="${current.category || ''}">
+    </div>
+    <div class="form-group">
+      <label>Weight Increment (kg)</label>
+      <div style="display:flex;gap:8px;">
+        ${[1, 1.25, 2, 2.5, 5].map(v => `
+          <button class="exercise-chip ${current.increment === v ? 'active' : ''}" 
+            onclick="selectIncrement(this, ${v})" style="flex:1;text-align:center;">
+            ${v}
+          </button>
+        `).join('')}
+      </div>
+      <input type="number" id="settings-increment" value="${current.increment}" 
+        inputmode="decimal" step="0.25" min="0.25" style="margin-top:8px;" 
+        placeholder="Custom increment">
+    </div>
+    <div class="form-group">
+      <label>Target Reps per Set</label>
+      <div style="display:flex;gap:8px;">
+        ${[6, 8, 10, 12].map(v => `
+          <button class="exercise-chip ${current.targetReps === v ? 'active' : ''}" 
+            onclick="selectTargetReps(this, ${v})" style="flex:1;text-align:center;">
+            ${v}
+          </button>
+        `).join('')}
+      </div>
+      <input type="number" id="settings-targetreps" value="${current.targetReps}" 
+        inputmode="numeric" min="1" max="30" style="margin-top:8px;"
+        placeholder="Custom target reps">
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">
+      When you hit <strong>${current.targetReps} reps</strong> on all sets, the app will suggest increasing by <strong>${current.increment} kg</strong>.
+    </div>
+    <button class="btn btn-primary" onclick="saveExerciseSettingsModal('${esc(key)}')">Save</button>
+  `;
+  openModal(html);
+}
+
+function selectIncrement(el, val) {
+  document.getElementById('settings-increment').value = val;
+  el.parentElement.querySelectorAll('.exercise-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function selectTargetReps(el, val) {
+  document.getElementById('settings-targetreps').value = val;
+  el.parentElement.querySelectorAll('.exercise-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function selectCategory(el, val) {
+  const input = document.getElementById('settings-category');
+  // Toggle: if already selected, deselect
+  if (input.value === val) {
+    input.value = '';
+    el.classList.remove('active');
+  } else {
+    input.value = val;
+    el.parentElement.querySelectorAll('.exercise-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  }
+}
+
+async function saveExerciseSettingsModal(key) {
+  const increment = parseFloat(document.getElementById('settings-increment').value) || 2.5;
+  const targetReps = parseInt(document.getElementById('settings-targetreps').value) || 10;
+  const category = document.getElementById('settings-category').value || '';
+  exerciseSettings[key] = { increment, targetReps, category };
+  await saveExerciseSettings();
+  closeModalDirect();
+  renderLog();
+  renderProgress();
+  showToast('Settings saved');
+}
+
+// ════════════════════════════════════════════════════════════
+//  HISTORY VIEW
+// ════════════════════════════════════════════════════════════
+function renderHistory() {
+  const el = document.getElementById('history-content');
+  if (workoutHistory.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No workouts logged yet</div></div>`;
+    return;
+  }
+
+  let html = '';
+  let lastDateStr = '';
+  workoutHistory.forEach((w, i) => {
+    const d = new Date(w.date);
+    const dateStr = d.toLocaleDateString('no-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (dateStr !== lastDateStr) {
+      html += `<div class="history-date">${dateStr}</div>`;
+      lastDateStr = dateStr;
+    }
+    const exList = (w.exercises || []).map(e => {
+      const topSet = getBestSet(e.sets);
+      return `${e.name}${topSet ? ` — ${topSet.weight}kg × ${topSet.reps}` : ''}`;
+    }).join('<br>');
+    const totalVolume = calcVolume(w);
+    html += `
+      <div class="card card-clickable" onclick="openWorkoutDetail(${i})">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div class="history-workout-title">${esc(w.name)}</div>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">${d.toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div class="history-summary">${exList}</div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);margin-top:8px;">
+          Vol: ${formatNumber(totalVolume)} kg
+        </div>
+      </div>
+    `;
+  });
+  el.innerHTML = html;
+}
+
+function getBestSet(sets) {
+  if (!sets || !sets.length) return null;
+  let best = null;
+  for (const s of sets) {
+    const w = parseFloat(s.weight) || 0;
+    const r = parseInt(s.reps) || 0;
+    if (w > 0 && (!best || w > best.weight || (w === best.weight && r > best.reps))) {
+      best = { weight: w, reps: r };
+    }
+  }
+  return best;
+}
+
+function calcVolume(workout) {
+  let vol = 0;
+  for (const e of (workout.exercises || [])) {
+    for (const s of (e.sets || [])) {
+      vol += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+    }
+  }
+  return vol;
+}
+
+function openWorkoutDetail(idx) {
+  const w = workoutHistory[idx];
+  const d = new Date(w.date);
+  let html = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">${esc(w.name)}</div>
+    <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+      ${d.toLocaleDateString('no-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+      — ${d.toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'})}
+    </div>
+  `;
+
+  for (const e of (w.exercises || [])) {
+    html += `<div style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:6px;">${esc(e.name)}</div>`;
+    (e.sets || []).forEach((s, si) => {
+      html += `<div style="display:flex;gap:12px;font-family:var(--font-mono);font-size:14px;color:var(--text-secondary);padding:4px 0;">
+        <span style="color:var(--text-muted);width:24px;">${si+1}</span>
+        <span>${s.weight || '-'} kg</span>
+        <span>× ${s.reps || '-'}</span>
+        ${s.rpe ? `<span style="color:var(--text-muted);">RPE ${s.rpe}</span>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `
+    <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-top:8px;padding-top:12px;border-top:1px solid var(--border);">
+      Total volume: ${formatNumber(calcVolume(w))} kg
+    </div>
+    <button class="btn btn-danger" onclick="confirmDeleteWorkout('${w.id}',${idx})" style="margin-top:16px;">Delete Workout</button>
+  `;
+
+  openModal(html);
+}
+
+function confirmDeleteWorkout(id, idx) {
+  const w = workoutHistory[idx];
+  openModal(`
+    <div class="modal-handle"></div>
+    <div class="modal-title">Delete workout?</div>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">
+      This will permanently delete <strong>${esc(w.name)}</strong> from ${formatDate(w.date)}. This cannot be undone.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-danger" onclick="deleteWorkout('${id}',${idx})">Yes, delete</button>
+      <button class="btn btn-secondary" onclick="openWorkoutDetail(${idx})">Cancel</button>
+    </div>
+  `);
+}
+
+async function deleteWorkout(id, idx) {
+  if (useFirebase) {
+    await db.ref('workouts/' + id).remove();
+  }
+  // Also clean localStorage
+  const local = await loadData('workouts') || {};
+  delete local[id];
+  await saveData('workouts', local);
+  
+  await loadHistory();
+  buildExerciseNameList();
+  renderHistory();
+  renderProgress();
+  closeModalDirect();
+  showToast('Workout deleted');
+}
+
+// ════════════════════════════════════════════════════════════
+//  PROGRESS VIEW
+// ════════════════════════════════════════════════════════════
+let selectedProgressExercise = '';
+let selectedProgressCategory = 'all';
+
+function renderProgress() {
+  const el = document.getElementById('progress-content');
+  if (allExerciseNames.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div><div class="empty-text">Log workouts to track progress</div></div>`;
+    return;
+  }
+
+  // Category filter tabs
+  const categories = ['all', 'push', 'pull', 'legs', 'uncategorized'];
+  const catLabels = { all: 'All', push: 'Push', pull: 'Pull', legs: 'Legs', uncategorized: 'Other' };
+  const catDots = { push: 'cat-dot-push', pull: 'cat-dot-pull', legs: 'cat-dot-legs', uncategorized: 'cat-dot-none' };
+  
+  // Count exercises per category
+  const catCounts = { all: allExerciseNames.length, push: 0, pull: 0, legs: 0, uncategorized: 0 };
+  allExerciseNames.forEach(name => {
+    const cat = getExerciseCategory(name);
+    if (cat && catCounts[cat] !== undefined) catCounts[cat]++;
+    else catCounts.uncategorized++;
+  });
+
+  let html = `<div class="category-filters">`;
+  categories.forEach(cat => {
+    if (cat !== 'all' && catCounts[cat] === 0) return; // hide empty categories
+    html += `<button class="category-filter ${selectedProgressCategory === cat ? 'active' : ''}" 
+      onclick="selectProgressCategory('${cat}')">
+      ${catDots[cat] ? `<span class="cat-dot ${catDots[cat]}"></span>` : ''}
+      ${catLabels[cat]} <span style="opacity:0.5">${catCounts[cat]}</span>
+    </button>`;
+  });
+  html += `</div>`;
+
+  // Filter exercises by selected category
+  const filteredExercises = allExerciseNames.filter(name => {
+    if (selectedProgressCategory === 'all') return true;
+    const cat = getExerciseCategory(name);
+    if (selectedProgressCategory === 'uncategorized') return !cat;
+    return cat === selectedProgressCategory;
+  });
+
+  if (filteredExercises.length === 0) {
+    html += `<div class="empty-state"><div class="empty-text">No exercises in this category</div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  if (!selectedProgressExercise || !filteredExercises.includes(selectedProgressExercise)) {
+    selectedProgressExercise = filteredExercises[0];
+  }
+
+  html += `<div class="exercise-select-list">`;
+  filteredExercises.forEach(name => {
+    const cat = getExerciseCategory(name);
+    const dotCls = getCategoryDotClass(cat);
+    html += `<button class="exercise-chip ${name === selectedProgressExercise ? 'active' : ''}" 
+      onclick="selectProgressExercise('${esc(name)}')">
+      ${cat ? `<span class="cat-dot ${dotCls}" style="width:6px;height:6px;"></span> ` : ''}
+      ${esc(name)}
+    </button>`;
+  });
+  html += `</div>`;
+
+  // Gather data for selected exercise
+  const dataPoints = getExerciseHistory(selectedProgressExercise);
+
+  if (dataPoints.length === 0) {
+    html += `<div class="empty-state"><div class="empty-text">No data for this exercise</div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // Stats
+  const allWeights = dataPoints.map(d => d.maxWeight);
+  const allVolumes = dataPoints.map(d => d.volume);
+  const allE1rms = dataPoints.map(d => d.e1rm);
+  const prWeight = Math.max(...allWeights);
+  const prVolume = Math.max(...allVolumes);
+  const prE1rm = Math.max(...allE1rms);
+  const avgRPE = dataPoints.filter(d => d.avgRpe > 0).reduce((a, d) => a + d.avgRpe, 0) / 
+    (dataPoints.filter(d => d.avgRpe > 0).length || 1);
+  const totalSessions = dataPoints.length;
+
+  html += `
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value">${prWeight} kg</div>
+        <div class="stat-label">Weight PR</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${prE1rm} kg</div>
+        <div class="stat-label">Est. 1RM PR</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${formatNumber(prVolume)}</div>
+        <div class="stat-label">Volume PR (kg)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${avgRPE > 0 ? avgRPE.toFixed(1) : '—'}</div>
+        <div class="stat-label">Avg RPE</div>
+      </div>
+    </div>
+  `;
+
+  // Progression suggestion in progress view
+  const progressSuggestion = getProgressionSuggestion(selectedProgressExercise);
+  const exSettings = getExerciseSetting(selectedProgressExercise);
+  if (progressSuggestion) {
+    html += `
+      <div class="suggestion-box" style="margin-bottom:16px;">
+        <div class="suggestion-icon">${progressSuggestion.icon}</div>
+        <div style="flex:1;">
+          <div class="suggestion-text">Next session: ${progressSuggestion.text}</div>
+          <div class="suggestion-detail">${progressSuggestion.detail}</div>
+        </div>
+      </div>
+    `;
+  }
+  html += `
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn btn-secondary btn-sm" onclick="openExerciseSettings('${esc(selectedProgressExercise)}')" style="flex:1;">
+        ⚙️ Increment: ${exSettings.increment}kg · Target: ${exSettings.targetReps} reps
+      </button>
+    </div>
+  `;
+
+  html += `
+    <div class="chart-container">
+      <div class="chart-title">Estimated 1RM (kg) <span style="font-weight:400;font-size:9px;color:var(--text-muted);text-transform:none;letter-spacing:0;">— combines weight & reps into one number</span></div>
+      <canvas id="e1rm-chart" height="200"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Max Weight (kg)</div>
+      <canvas id="weight-chart" height="200"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Session Volume (kg)</div>
+      <canvas id="volume-chart" height="200"></canvas>
+    </div>
+  `;
+
+  el.innerHTML = html;
+
+  // Render charts
+  renderCharts(dataPoints);
+}
+
+function selectProgressExercise(name) {
+  selectedProgressExercise = name;
+  renderProgress();
+}
+
+function selectProgressCategory(cat) {
+  selectedProgressCategory = cat;
+  selectedProgressExercise = ''; // reset selection to pick first in new filter
+  renderProgress();
+}
+
+function getExerciseHistory(name) {
+  const nameLower = name.toLowerCase().trim();
+  const points = [];
+  // Go through history in chronological order
+  const sorted = [...workoutHistory].reverse();
+  for (const w of sorted) {
+    for (const e of (w.exercises || [])) {
+      if (e.name.toLowerCase().trim() === nameLower) {
+        let maxWeight = 0, volume = 0, rpeSum = 0, rpeCount = 0;
+        let bestSet = null;
+        let bestE1rm = 0;
+        for (const s of (e.sets || [])) {
+          const wt = parseFloat(s.weight) || 0;
+          const rp = parseInt(s.reps) || 0;
+          volume += wt * rp;
+          if (wt > maxWeight) maxWeight = wt;
+          if (s.rpe) { rpeSum += parseFloat(s.rpe); rpeCount++; }
+          // Epley e1RM formula
+          const e1rm = rp === 1 ? wt : Math.round(wt * (1 + rp / 30) * 10) / 10;
+          if (e1rm > bestE1rm) bestE1rm = e1rm;
+          if (wt > 0 && rp > 0 && (!bestSet || wt > bestSet.weight)) {
+            bestSet = { weight: wt, reps: rp };
+          }
+        }
+        points.push({
+          date: w.date,
+          maxWeight,
+          volume,
+          e1rm: bestE1rm,
+          avgRpe: rpeCount > 0 ? rpeSum / rpeCount : 0,
+          bestSet,
+          sets: e.sets.length
+        });
+      }
+    }
+  }
+  return points;
+}
+
+function renderCharts(dataPoints) {
+  const labels = dataPoints.map(d => {
+    const dt = new Date(d.date);
+    return dt.toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
+  });
+
+  const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        grid: { color: '#2a2a3a44' },
+        ticks: { color: '#555568', font: { family: 'JetBrains Mono', size: 10 } }
+      },
+      y: {
+        grid: { color: '#2a2a3a44' },
+        ticks: { color: '#555568', font: { family: 'JetBrains Mono', size: 10 } }
+      }
+    }
+  };
+
+  // Destroy previous charts
+  activeCharts.forEach(c => c.destroy());
+  activeCharts = [];
+
+  // e1RM chart (primary — this is the best single metric for progress)
+  const eCtx = document.getElementById('e1rm-chart');
+  if (eCtx) {
+    activeCharts.push(new Chart(eCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: dataPoints.map(d => d.e1rm),
+          borderColor: '#fbbf24',
+          backgroundColor: '#fbbf2418',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 5,
+          pointBackgroundColor: '#fbbf24',
+          borderWidth: 2.5
+        }]
+      },
+      options: {
+        ...chartDefaults,
+        plugins: {
+          ...chartDefaults.plugins,
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const dp = dataPoints[ctx.dataIndex];
+                return dp.bestSet 
+                  ? `e1RM: ${ctx.parsed.y} kg (${dp.bestSet.weight}kg × ${dp.bestSet.reps})`
+                  : `e1RM: ${ctx.parsed.y} kg`;
+              }
+            }
+          }
+        }
+      }
+    }));
+  }
+
+  // Weight chart
+  const wCtx = document.getElementById('weight-chart');
+  if (wCtx) {
+    activeCharts.push(new Chart(wCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: dataPoints.map(d => d.maxWeight),
+          borderColor: '#6ee7b7',
+          backgroundColor: '#6ee7b722',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#6ee7b7',
+          borderWidth: 2
+        }]
+      },
+      options: chartDefaults
+    }));
+  }
+
+  // Volume chart
+  const vCtx = document.getElementById('volume-chart');
+  if (vCtx) {
+    activeCharts.push(new Chart(vCtx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: dataPoints.map(d => d.volume),
+          backgroundColor: '#6ee7b744',
+          borderColor: '#6ee7b7',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: chartDefaults
+    }));
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  TEMPLATES
+// ════════════════════════════════════════════════════════════
+function renderTemplates() {
+  const el = document.getElementById('templates-content');
+  if (templates.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <div class="empty-text">No templates yet<br>Create a template to speed up logging</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  templates.forEach((t, i) => {
+    html += `
+      <div class="card">
+        <div style="font-size:17px;font-weight:700;">${esc(t.name)}</div>
+        <div class="template-exercises">${(t.exercises||[]).map(e => `${esc(e.name)} (${e.defaultSets} sets)`).join('<br>')}</div>
+        <div class="template-actions">
+          <button class="btn btn-primary btn-sm" onclick="startFromTemplate(${i})">Start</button>
+          <button class="btn btn-secondary btn-sm" onclick="editTemplate(${i})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTemplate(${i})">Delete</button>
+        </div>
+      </div>
+    `;
+  });
+  el.innerHTML = html;
+}
+
+function openNewTemplateModal() {
+  let html = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">New Template</div>
+    <div class="form-group">
+      <label>Template Name</label>
+      <input type="text" id="tpl-name" placeholder="e.g. Push Day">
+    </div>
+    <div id="tpl-exercises">
+      <div class="form-group tpl-exercise-row">
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="tpl-ex-name" placeholder="Exercise name" list="exercise-names" style="flex:2;">
+          <input type="number" class="tpl-ex-sets" placeholder="Sets" value="3" inputmode="numeric" style="flex:1;">
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="addTemplateExerciseRow()" style="margin-bottom:16px;">+ Add Exercise</button>
+    <datalist id="exercise-names">${allExerciseNames.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <button class="btn btn-primary" onclick="saveNewTemplate()">Save Template</button>
+  `;
+  openModal(html);
+}
+
+function addTemplateExerciseRow() {
+  const container = document.getElementById('tpl-exercises');
+  const row = document.createElement('div');
+  row.className = 'form-group tpl-exercise-row';
+  row.innerHTML = `
+    <div style="display:flex;gap:8px;">
+      <input type="text" class="tpl-ex-name" placeholder="Exercise name" list="exercise-names" style="flex:2;">
+      <input type="number" class="tpl-ex-sets" placeholder="Sets" value="3" inputmode="numeric" style="flex:1;">
+    </div>
+  `;
+  container.appendChild(row);
+}
+
+async function saveNewTemplate() {
+  const name = document.getElementById('tpl-name').value.trim();
+  if (!name) { showToast('Enter a template name'); return; }
+  
+  const rows = document.querySelectorAll('.tpl-exercise-row');
+  const exercises = [];
+  rows.forEach(row => {
+    const eName = row.querySelector('.tpl-ex-name').value.trim();
+    const eSets = parseInt(row.querySelector('.tpl-ex-sets').value) || 3;
+    if (eName) exercises.push({ name: eName, defaultSets: eSets });
+  });
+
+  if (exercises.length === 0) { showToast('Add at least one exercise'); return; }
+
+  await pushData('templates', { name, exercises });
+  await loadTemplates();
+  renderTemplates();
+  closeModalDirect();
+  showToast('Template saved!');
+}
+
+function editTemplate(idx) {
+  const t = templates[idx];
+  let html = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">Edit Template</div>
+    <div class="form-group">
+      <label>Template Name</label>
+      <input type="text" id="tpl-name" value="${esc(t.name)}">
+    </div>
+    <div id="tpl-exercises">
+      ${(t.exercises || []).map(e => `
+        <div class="form-group tpl-exercise-row">
+          <div style="display:flex;gap:8px;">
+            <input type="text" class="tpl-ex-name" value="${esc(e.name)}" list="exercise-names" style="flex:2;">
+            <input type="number" class="tpl-ex-sets" value="${e.defaultSets || 3}" inputmode="numeric" style="flex:1;">
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="addTemplateExerciseRow()" style="margin-bottom:16px;">+ Add Exercise</button>
+    <datalist id="exercise-names">${allExerciseNames.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <button class="btn btn-primary" onclick="updateTemplate('${t.id}',${idx})">Update Template</button>
+  `;
+  openModal(html);
+}
+
+async function updateTemplate(id, idx) {
+  const name = document.getElementById('tpl-name').value.trim();
+  if (!name) return;
+  const rows = document.querySelectorAll('.tpl-exercise-row');
+  const exercises = [];
+  rows.forEach(row => {
+    const eName = row.querySelector('.tpl-ex-name').value.trim();
+    const eSets = parseInt(row.querySelector('.tpl-ex-sets').value) || 3;
+    if (eName) exercises.push({ name: eName, defaultSets: eSets });
+  });
+
+  if (useFirebase) {
+    await db.ref('templates/' + id).set({ name, exercises });
+  }
+  const local = await loadData('templates') || {};
+  local[id] = { name, exercises };
+  await saveData('templates', local);
+  
+  await loadTemplates();
+  renderTemplates();
+  closeModalDirect();
+  showToast('Template updated');
+}
+
+async function deleteTemplate(idx) {
+  const t = templates[idx];
+  if (useFirebase) {
+    await db.ref('templates/' + t.id).remove();
+  }
+  const local = await loadData('templates') || {};
+  delete local[t.id];
+  await saveData('templates', local);
+  
+  await loadTemplates();
+  renderTemplates();
+  showToast('Template deleted');
+}
+
+// ════════════════════════════════════════════════════════════
+//  REST TIMER
+// ════════════════════════════════════════════════════════════
+let timerInterval = null;
+let timerSeconds = 90;
+let timerRunning = false;
+
+function toggleRestTimer() {
+  const bar = document.getElementById('rest-timer');
+  bar.classList.toggle('active');
+  if (!bar.classList.contains('active')) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+  }
+}
+
+function setTimerPreset(secs) {
+  clearInterval(timerInterval);
+  timerSeconds = secs;
+  timerRunning = true;
+  updateTimerDisplay();
+  
+  // Update active button
+  document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('active-timer'));
+  event.target.classList.add('active-timer');
+  
+  timerInterval = setInterval(() => {
+    timerSeconds--;
+    updateTimerDisplay();
+    if (timerSeconds <= 0) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      // Vibrate if available
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      showToast('Rest done! 💪');
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerSeconds / 60);
+  const s = timerSeconds % 60;
+  document.getElementById('timer-display').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ════════════════════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════════════════════
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) {
+    closeModalDirect();
+  }
+}
+
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+
+function openConfirmModal(msg, onConfirm) {
+  openModal(`
+    <div class="modal-handle"></div>
+    <div class="modal-title">${msg}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;">
+      <button class="btn btn-danger" onclick="(${onConfirm.toString()})(); closeModalDirect();">Yes, discard</button>
+      <button class="btn btn-secondary" onclick="closeModalDirect()">Keep editing</button>
+    </div>
+  `);
+}
+
+// ════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════
+function showToast(msg, isPR = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isPR ? ' pr-toast' : '');
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ════════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════════
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function formatDate(isoStr) {
+  return new Date(isoStr).toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatNumber(n) {
+  return Math.round(n).toLocaleString('no-NO');
+}
+
+// ════════════════════════════════════════════════════════════
+//  iOS HELPERS
+// ════════════════════════════════════════════════════════════
+
+// Scroll input into view when keyboard opens (iOS Safari)
+document.addEventListener('focusin', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
+});
+
+// Blur inputs when tapping outside (dismiss keyboard)
+document.addEventListener('touchstart', (e) => {
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      active.blur();
+    }
+  }
+});
+
+// Auto-advance: when typing in a set input, move to next on Enter
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.classList.contains('set-input')) {
+    e.preventDefault();
+    const inputs = [...document.querySelectorAll('.set-input')];
+    const idx = inputs.indexOf(e.target);
+    if (idx >= 0 && idx < inputs.length - 1) {
+      inputs[idx + 1].focus();
+      inputs[idx + 1].select();
+    } else {
+      e.target.blur();
+    }
+  }
+});
+
+// ── INIT ──
+init();
+</script>
+</body>
+</html>
