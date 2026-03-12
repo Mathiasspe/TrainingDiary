@@ -2123,21 +2123,64 @@ function renderCharts(dataPoints, isBwExercise) {
     return dt.toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
   });
 
+  // Smart Y-axis step: pick a nice interval based on data range
+  function smartYAxis(dataArr) {
+    const max = Math.max(...dataArr.filter(v => v != null && v > 0), 0);
+    const min = Math.min(...dataArr.filter(v => v != null && v > 0), 0);
+    const range = max - min || max || 10;
+    // Aim for ~4-6 grid lines
+    let step;
+    if (range <= 15) step = 2;
+    else if (range <= 30) step = 5;
+    else if (range <= 80) step = 10;
+    else if (range <= 200) step = 20;
+    else if (range <= 500) step = 50;
+    else step = 100;
+    // Start Y from a nice round number below the min
+    const niceMin = Math.max(0, Math.floor((min * 0.9) / step) * step);
+    return { stepSize: step, min: niceMin };
+  }
+
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: true,
     plugins: { legend: { display: false } },
     scales: {
       x: {
-        grid: { color: '#2a2a3a44' },
-        ticks: { color: '#555568', font: { family: 'JetBrains Mono', size: 10 } }
+        grid: { color: '#2a2a3a33' },
+        ticks: { 
+          color: '#9999ad', 
+          font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+          maxRotation: 45,
+          autoSkip: true,
+          autoSkipPadding: 8
+        }
       },
       y: {
-        grid: { color: '#2a2a3a44' },
-        ticks: { color: '#555568', font: { family: 'JetBrains Mono', size: 10 } }
+        grid: { color: '#2a2a3a33' },
+        ticks: { 
+          color: '#9999ad', 
+          font: { family: 'JetBrains Mono', size: 12, weight: '600' }
+        }
       }
     }
   };
+
+  // Helper to merge smart Y axis into defaults
+  function withSmartY(data, opts) {
+    const yConfig = smartYAxis(data);
+    return {
+      ...opts,
+      scales: {
+        ...opts.scales,
+        y: {
+          ...opts.scales.y,
+          ticks: { ...opts.scales.y.ticks, stepSize: yConfig.stepSize },
+          min: yConfig.min
+        }
+      }
+    };
+  }
 
   // Destroy previous charts
   activeCharts.forEach(c => c.destroy());
@@ -2148,12 +2191,13 @@ function renderCharts(dataPoints, isBwExercise) {
   // ── BODYWEIGHT CHARTS ──
   const mrCtx = document.getElementById('maxreps-chart');
   if (mrCtx) {
+    const mrData = dataPoints.map(d => d.maxReps);
     activeCharts.push(new Chart(mrCtx, {
       type: 'line',
       data: {
         labels,
         datasets: [{
-          data: dataPoints.map(d => d.maxReps),
+          data: mrData,
           borderColor: '#fbbf24',
           backgroundColor: '#fbbf2418',
           fill: true,
@@ -2163,25 +2207,26 @@ function renderCharts(dataPoints, isBwExercise) {
           borderWidth: 2.5
         }]
       },
-      options: chartDefaults
+      options: withSmartY(mrData, chartDefaults)
     }));
   }
 
   const trCtx = document.getElementById('totalreps-chart');
   if (trCtx) {
+    const trData = dataPoints.map(d => d.totalReps);
     activeCharts.push(new Chart(trCtx, {
       type: 'bar',
       data: {
         labels,
         datasets: [{
-          data: dataPoints.map(d => d.totalReps),
+          data: trData,
           backgroundColor: '#6ee7b744',
           borderColor: '#6ee7b7',
           borderWidth: 1,
           borderRadius: 4
         }]
       },
-      options: chartDefaults
+      options: withSmartY(trData, chartDefaults)
     }));
   }
 
@@ -2190,10 +2235,10 @@ function renderCharts(dataPoints, isBwExercise) {
   // Grouped bar chart: each session shows individual set weights
   const setsCtx = document.getElementById('sets-chart');
   if (setsCtx) {
-    // Find the max number of sets across all displayed sessions
     const maxSets = Math.max(...dataPoints.map(d => d.setWeights.length), 1);
     const setColors = ['#6ee7b7', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#34d399', '#f87171'];
     
+    const allWeightValues = dataPoints.flatMap(d => d.setWeights.filter(w => w > 0));
     const datasets = [];
     for (let si = 0; si < maxSets; si++) {
       datasets.push({
@@ -2208,17 +2253,18 @@ function renderCharts(dataPoints, isBwExercise) {
       });
     }
 
+    const setsOpts = withSmartY(allWeightValues, chartDefaults);
     activeCharts.push(new Chart(setsCtx, {
       type: 'bar',
       data: { labels, datasets },
       options: {
-        ...chartDefaults,
+        ...setsOpts,
         plugins: {
           legend: { 
             display: maxSets > 1,
             labels: { 
-              color: '#555568', 
-              font: { family: 'JetBrains Mono', size: 10 },
+              color: '#9999ad', 
+              font: { family: 'JetBrains Mono', size: 11, weight: '600' },
               boxWidth: 12,
               padding: 8
             }
@@ -2241,12 +2287,14 @@ function renderCharts(dataPoints, isBwExercise) {
   // e1RM chart
   const eCtx = document.getElementById('e1rm-chart');
   if (eCtx) {
+    const e1rmData = dataPoints.map(d => d.e1rm);
+    const e1rmOpts = withSmartY(e1rmData, chartDefaults);
     activeCharts.push(new Chart(eCtx, {
       type: 'line',
       data: {
         labels,
         datasets: [{
-          data: dataPoints.map(d => d.e1rm),
+          data: e1rmData,
           borderColor: '#fbbf24',
           backgroundColor: '#fbbf2418',
           fill: true,
@@ -2257,9 +2305,9 @@ function renderCharts(dataPoints, isBwExercise) {
         }]
       },
       options: {
-        ...chartDefaults,
+        ...e1rmOpts,
         plugins: {
-          ...chartDefaults.plugins,
+          ...e1rmOpts.plugins,
           tooltip: {
             callbacks: {
               label: (ctx) => {
@@ -2278,19 +2326,20 @@ function renderCharts(dataPoints, isBwExercise) {
   // Volume chart
   const vCtx = document.getElementById('volume-chart');
   if (vCtx) {
+    const volData = dataPoints.map(d => d.volume);
     activeCharts.push(new Chart(vCtx, {
       type: 'bar',
       data: {
         labels,
         datasets: [{
-          data: dataPoints.map(d => d.volume),
+          data: volData,
           backgroundColor: '#6ee7b744',
           borderColor: '#6ee7b7',
           borderWidth: 1,
           borderRadius: 4
         }]
       },
-      options: chartDefaults
+      options: withSmartY(volData, chartDefaults)
     }));
   }
 }
