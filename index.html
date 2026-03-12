@@ -857,9 +857,13 @@ async function saveExerciseSettings() {
 }
 
 function getExerciseSetting(name) {
-  if (!name) return { increment: 2.5, targetReps: 10, category: '' };
+  if (!name) return { increment: 2.5, targetReps: 10, category: '', bodyweight: false };
   const key = name.toLowerCase().trim();
-  return exerciseSettings[key] || { increment: 2.5, targetReps: 10, category: '' };
+  return exerciseSettings[key] || { increment: 2.5, targetReps: 10, category: '', bodyweight: false };
+}
+
+function isBodyweight(name) {
+  return getExerciseSetting(name).bodyweight === true;
 }
 
 function getExerciseCategory(name) {
@@ -942,6 +946,7 @@ function renderLog() {
     const prevBest = getPreviousBest(ex.name);
     const suggestion = getProgressionSuggestion(ex.name);
     const settings = getExerciseSetting(ex.name);
+    const isBw = isBodyweight(ex.name);
     html += `
       <div class="exercise-block">
         <div class="exercise-header">
@@ -967,30 +972,49 @@ function renderLog() {
                 <div class="suggestion-text">${suggestion.text}</div>
                 <div class="suggestion-detail">${suggestion.detail}</div>
               </div>
-              ${suggestion.weight ? `<button class="suggestion-apply" onclick="applySuggestion(${ei}, ${suggestion.weight}, ${suggestion.reps})">Apply</button>` : ''}
+              ${suggestion.weight !== undefined && suggestion.weight !== null ? `<button class="suggestion-apply" onclick="applySuggestion(${ei}, ${suggestion.weight}, ${suggestion.reps})">Apply</button>` : ''}
             </div>
           ` : prevBest ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-family:var(--font-mono);">
-            Previous best: ${prevBest.weight}kg × ${prevBest.reps} reps
+            Previous best: ${isBw ? prevBest.reps + ' reps' : prevBest.weight + 'kg × ' + prevBest.reps + ' reps'}
           </div>` : ''}
-          <div class="set-labels">
-            <div class="set-label">Set</div>
-            <div class="set-label">Kg</div>
-            <div class="set-label">Reps</div>
-            <div class="set-label">RPE</div>
-            <div></div>
-          </div>
-          ${ex.sets.map((s, si) => `
-            <div class="set-row">
-              <div class="set-num">${si+1}</div>
-              <input type="number" class="set-input" value="${s.weight||''}" placeholder="0" 
-                inputmode="decimal" onchange="updateSet(${ei},${si},'weight',this.value)">
-              <input type="number" class="set-input" value="${s.reps||''}" placeholder="0" 
-                inputmode="numeric" onchange="updateSet(${ei},${si},'reps',this.value)">
-              <input type="number" class="set-input" value="${s.rpe||''}" placeholder="—" 
-                inputmode="decimal" min="1" max="10" step="0.5" onchange="updateSet(${ei},${si},'rpe',this.value)">
-              <button class="remove-set-btn" onclick="removeSet(${ei},${si})">−</button>
+          ${isBw ? `
+            <div class="set-labels" style="grid-template-columns: 32px 1fr 1fr 40px;">
+              <div class="set-label">Set</div>
+              <div class="set-label">Reps</div>
+              <div class="set-label">RPE</div>
+              <div></div>
             </div>
-          `).join('')}
+            ${ex.sets.map((s, si) => `
+              <div class="set-row" style="grid-template-columns: 32px 1fr 1fr 40px;">
+                <div class="set-num">${si+1}</div>
+                <input type="number" class="set-input" value="${s.reps||''}" placeholder="0" 
+                  inputmode="numeric" onchange="updateSet(${ei},${si},'reps',this.value)">
+                <input type="number" class="set-input" value="${s.rpe||''}" placeholder="—" 
+                  inputmode="decimal" min="1" max="10" step="0.5" onchange="updateSet(${ei},${si},'rpe',this.value)">
+                <button class="remove-set-btn" onclick="removeSet(${ei},${si})">−</button>
+              </div>
+            `).join('')}
+          ` : `
+            <div class="set-labels">
+              <div class="set-label">Set</div>
+              <div class="set-label">Kg</div>
+              <div class="set-label">Reps</div>
+              <div class="set-label">RPE</div>
+              <div></div>
+            </div>
+            ${ex.sets.map((s, si) => `
+              <div class="set-row">
+                <div class="set-num">${si+1}</div>
+                <input type="number" class="set-input" value="${s.weight||''}" placeholder="0" 
+                  inputmode="decimal" onchange="updateSet(${ei},${si},'weight',this.value)">
+                <input type="number" class="set-input" value="${s.reps||''}" placeholder="0" 
+                  inputmode="numeric" onchange="updateSet(${ei},${si},'reps',this.value)">
+                <input type="number" class="set-input" value="${s.rpe||''}" placeholder="—" 
+                  inputmode="decimal" min="1" max="10" step="0.5" onchange="updateSet(${ei},${si},'rpe',this.value)">
+                <button class="remove-set-btn" onclick="removeSet(${ei},${si})">−</button>
+              </div>
+            `).join('')}
+          `}
           <button class="add-set-btn" onclick="addSet(${ei})">+ Add Set</button>
         </div>
       </div>
@@ -1205,6 +1229,7 @@ async function confirmSaveAsTemplate() {
 function getPreviousBest(exerciseName) {
   if (!exerciseName) return null;
   const name = exerciseName.toLowerCase().trim();
+  const isBw = isBodyweight(exerciseName);
   let best = null;
   for (const w of workoutHistory) {
     for (const e of (w.exercises || [])) {
@@ -1212,9 +1237,15 @@ function getPreviousBest(exerciseName) {
         for (const s of (e.sets || [])) {
           const weight = parseFloat(s.weight) || 0;
           const reps = parseInt(s.reps) || 0;
-          if (weight > 0 && reps > 0) {
-            if (!best || weight > best.weight || (weight === best.weight && reps > best.reps)) {
-              best = { weight, reps };
+          if (isBw) {
+            if (reps > 0 && (!best || reps > best.reps)) {
+              best = { weight: 0, reps };
+            }
+          } else {
+            if (weight > 0 && reps > 0) {
+              if (!best || weight > best.weight || (weight === best.weight && reps > best.reps)) {
+                best = { weight, reps };
+              }
             }
           }
         }
@@ -1251,19 +1282,25 @@ function getProgressionSuggestion(exerciseName) {
   const nameLower = exerciseName.toLowerCase().trim();
   const settings = getExerciseSetting(exerciseName);
   const { increment, targetReps } = settings;
+  const isBw = settings.bodyweight === true;
   
   // Get the last 3 sessions for this exercise
   const sessions = [];
   for (const w of workoutHistory) {
     for (const e of (w.exercises || [])) {
       if (e.name.toLowerCase().trim() === nameLower) {
-        const workingSets = (e.sets || []).filter(s => (parseFloat(s.weight) || 0) > 0 && (parseInt(s.reps) || 0) > 0);
+        const workingSets = (e.sets || []).filter(s => {
+          if (isBw) return (parseInt(s.reps) || 0) > 0;
+          return (parseFloat(s.weight) || 0) > 0 && (parseInt(s.reps) || 0) > 0;
+        });
         if (workingSets.length > 0) {
           sessions.push({
             date: w.date,
             sets: workingSets,
-            maxWeight: Math.max(...workingSets.map(s => parseFloat(s.weight))),
+            maxWeight: isBw ? 0 : Math.max(...workingSets.map(s => parseFloat(s.weight) || 0)),
             avgReps: workingSets.reduce((a, s) => a + parseInt(s.reps), 0) / workingSets.length,
+            maxReps: Math.max(...workingSets.map(s => parseInt(s.reps) || 0)),
+            totalReps: workingSets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
             allHitTarget: workingSets.every(s => parseInt(s.reps) >= targetReps),
             avgRpe: workingSets.filter(s => s.rpe).length > 0 
               ? workingSets.filter(s => s.rpe).reduce((a, s) => a + parseFloat(s.rpe), 0) / workingSets.filter(s => s.rpe).length 
@@ -1271,7 +1308,7 @@ function getProgressionSuggestion(exerciseName) {
             totalSets: workingSets.length
           });
         }
-        break; // one match per workout
+        break;
       }
     }
     if (sessions.length >= 3) break;
@@ -1280,12 +1317,52 @@ function getProgressionSuggestion(exerciseName) {
   if (sessions.length === 0) return null;
   
   const last = sessions[0];
+
+  // ══ BODYWEIGHT PROGRESSION ══
+  if (isBw) {
+    const avgRepsRounded = Math.round(last.avgReps * 10) / 10;
+    
+    if (last.allHitTarget) {
+      // Hit target on all sets — suggest adding a set or increasing target
+      const newSetCount = last.totalSets + 1;
+      return {
+        icon: '⬆️',
+        text: `Add a set → ${newSetCount} × ${targetReps} reps`,
+        detail: `Hit ${targetReps}+ reps on all ${last.totalSets} sets. Add volume with an extra set.`,
+        weight: null,
+        reps: targetReps
+      };
+    }
+
+    // Stalled check
+    if (sessions.length >= 3) {
+      const allSimilarReps = sessions.every(s => Math.abs(s.avgReps - last.avgReps) <= 0.5);
+      if (allSimilarReps && last.avgReps < targetReps) {
+        return {
+          icon: '🔁',
+          text: `Try a variation or reduce sets`,
+          detail: `Stuck at ~${avgRepsRounded} reps for 3 sessions. Try an easier variation, drop to fewer sets, or add assisted reps.`,
+          weight: null,
+          reps: null
+        };
+      }
+    }
+
+    const repTarget = Math.min(Math.ceil(last.avgReps + 1), targetReps);
+    return {
+      icon: '💪',
+      text: `Aim for ${repTarget} reps per set`,
+      detail: `Averaged ${avgRepsRounded} reps last time. Build to ${targetReps} on all sets.`,
+      weight: null,
+      reps: repTarget
+    };
+  }
+
+  // ══ WEIGHTED PROGRESSION ══
   const lastWeight = last.maxWeight;
   
-  // ── RULE 1: All sets hit target reps? → Increase weight
   if (last.allHitTarget) {
     const newWeight = lastWeight + increment;
-    // Check if RPE data supports it (if available)
     const rpeConfirm = last.avgRpe !== null ? last.avgRpe <= 8.5 : true;
     
     if (rpeConfirm) {
@@ -1297,7 +1374,6 @@ function getProgressionSuggestion(exerciseName) {
         reps: targetReps
       };
     } else {
-      // Hit reps but RPE was very high — consolidate
       return {
         icon: '🔄',
         text: `Stay at ${lastWeight} kg × ${targetReps} reps`,
@@ -1308,17 +1384,14 @@ function getProgressionSuggestion(exerciseName) {
     }
   }
   
-  // ── RULE 2: Didn't hit target on all sets → stay and build reps
   const avgRepsRounded = Math.round(last.avgReps * 10) / 10;
   const repTarget = Math.min(Math.ceil(last.avgReps + 1), targetReps);
   
-  // Check if stalled (same weight & similar reps for 3 sessions)
   if (sessions.length >= 3) {
     const allSameWeight = sessions.every(s => s.maxWeight === lastWeight);
     const allSimilarReps = sessions.every(s => Math.abs(s.avgReps - last.avgReps) <= 0.5);
     
     if (allSameWeight && allSimilarReps && last.avgReps < targetReps) {
-      // Stalled for 3 sessions
       const deloadWeight = Math.round((lastWeight * 0.9) / increment) * increment;
       return {
         icon: '🔁',
@@ -1330,7 +1403,6 @@ function getProgressionSuggestion(exerciseName) {
     }
   }
   
-  // ── RULE 3: Standard — stay and add reps
   return {
     icon: '💪',
     text: `Stay at ${lastWeight} kg — aim for ${repTarget} reps`,
@@ -1351,7 +1423,7 @@ function applySuggestion(exerciseIdx, weight, reps) {
 
 function openExerciseSettings(exerciseName) {
   const key = exerciseName.toLowerCase().trim();
-  const current = exerciseSettings[key] || { increment: 2.5, targetReps: 10, category: '' };
+  const current = exerciseSettings[key] || { increment: 2.5, targetReps: 10, category: '', bodyweight: false };
   
   const html = `
     <div class="modal-handle"></div>
@@ -1373,23 +1445,39 @@ function openExerciseSettings(exerciseName) {
       <input type="hidden" id="settings-category" value="${current.category || ''}">
     </div>
     <div class="form-group">
-      <label>Weight Increment (kg)</label>
+      <label>Exercise Type</label>
       <div style="display:flex;gap:8px;">
-        ${[1, 1.25, 2, 2.5, 5].map(v => `
-          <button class="exercise-chip ${current.increment === v ? 'active' : ''}" 
-            onclick="selectIncrement(this, ${v})" style="flex:1;text-align:center;">
-            ${v}
-          </button>
-        `).join('')}
+        <button class="exercise-chip ${!current.bodyweight ? 'active' : ''}" 
+          onclick="toggleBodyweight(false)" style="flex:1;text-align:center;justify-content:center;" id="btn-weighted">
+          🏋️ Weighted
+        </button>
+        <button class="exercise-chip ${current.bodyweight ? 'active' : ''}" 
+          onclick="toggleBodyweight(true)" style="flex:1;text-align:center;justify-content:center;" id="btn-bodyweight">
+          🤸 Bodyweight
+        </button>
       </div>
-      <input type="number" id="settings-increment" value="${current.increment}" 
-        inputmode="decimal" step="0.25" min="0.25" style="margin-top:8px;" 
-        placeholder="Custom increment">
+      <input type="hidden" id="settings-bodyweight" value="${current.bodyweight ? 'true' : 'false'}">
+    </div>
+    <div id="weighted-settings" style="${current.bodyweight ? 'display:none;' : ''}">
+      <div class="form-group">
+        <label>Weight Increment (kg)</label>
+        <div style="display:flex;gap:8px;">
+          ${[1, 1.25, 2, 2.5, 5].map(v => `
+            <button class="exercise-chip ${current.increment === v ? 'active' : ''}" 
+              onclick="selectIncrement(this, ${v})" style="flex:1;text-align:center;">
+              ${v}
+            </button>
+          `).join('')}
+        </div>
+        <input type="number" id="settings-increment" value="${current.increment}" 
+          inputmode="decimal" step="0.25" min="0.25" style="margin-top:8px;" 
+          placeholder="Custom increment">
+      </div>
     </div>
     <div class="form-group">
       <label>Target Reps per Set</label>
       <div style="display:flex;gap:8px;">
-        ${[6, 8, 10, 12].map(v => `
+        ${(current.bodyweight ? [10, 15, 20, 25] : [6, 8, 10, 12]).map(v => `
           <button class="exercise-chip ${current.targetReps === v ? 'active' : ''}" 
             onclick="selectTargetReps(this, ${v})" style="flex:1;text-align:center;">
             ${v}
@@ -1397,15 +1485,25 @@ function openExerciseSettings(exerciseName) {
         `).join('')}
       </div>
       <input type="number" id="settings-targetreps" value="${current.targetReps}" 
-        inputmode="numeric" min="1" max="30" style="margin-top:8px;"
+        inputmode="numeric" min="1" max="100" style="margin-top:8px;"
         placeholder="Custom target reps">
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">
-      When you hit <strong>${current.targetReps} reps</strong> on all sets, the app will suggest increasing by <strong>${current.increment} kg</strong>.
+      ${current.bodyweight 
+        ? `Bodyweight exercise — tracks reps only. Target: <strong>${current.targetReps} reps</strong> per set.`
+        : `When you hit <strong>${current.targetReps} reps</strong> on all sets, the app will suggest increasing by <strong>${current.increment} kg</strong>.`
+      }
     </div>
     <button class="btn btn-primary" onclick="saveExerciseSettingsModal('${esc(key)}')">Save</button>
   `;
   openModal(html);
+}
+
+function toggleBodyweight(isBw) {
+  document.getElementById('settings-bodyweight').value = isBw ? 'true' : 'false';
+  document.getElementById('btn-weighted').classList.toggle('active', !isBw);
+  document.getElementById('btn-bodyweight').classList.toggle('active', isBw);
+  document.getElementById('weighted-settings').style.display = isBw ? 'none' : '';
 }
 
 function selectIncrement(el, val) {
@@ -1437,7 +1535,8 @@ async function saveExerciseSettingsModal(key) {
   const increment = parseFloat(document.getElementById('settings-increment').value) || 2.5;
   const targetReps = parseInt(document.getElementById('settings-targetreps').value) || 10;
   const category = document.getElementById('settings-category').value || '';
-  exerciseSettings[key] = { increment, targetReps, category };
+  const bodyweight = document.getElementById('settings-bodyweight').value === 'true';
+  exerciseSettings[key] = { increment, targetReps, category, bodyweight };
   await saveExerciseSettings();
   closeModalDirect();
   renderLog();
@@ -1796,36 +1895,64 @@ function renderProgress() {
   }
 
   // Stats
+  const isBwExercise = isBodyweight(selectedProgressExercise);
   const allWeights = dataPoints.map(d => d.maxWeight);
   const allVolumes = dataPoints.map(d => d.volume);
   const allE1rms = dataPoints.map(d => d.e1rm);
+  const allTotalReps = dataPoints.map(d => d.totalReps);
+  const allMaxReps = dataPoints.map(d => d.maxReps);
   const prWeight = Math.max(...allWeights);
   const prVolume = Math.max(...allVolumes);
   const prE1rm = Math.max(...allE1rms);
+  const prTotalReps = Math.max(...allTotalReps);
+  const prMaxReps = Math.max(...allMaxReps);
   const avgRPE = dataPoints.filter(d => d.avgRpe > 0).reduce((a, d) => a + d.avgRpe, 0) / 
     (dataPoints.filter(d => d.avgRpe > 0).length || 1);
   const totalSessions = dataPoints.length;
 
-  html += `
-    <div class="stat-grid">
-      <div class="stat-box">
-        <div class="stat-value">${prWeight} kg</div>
-        <div class="stat-label">Weight PR</div>
+  if (isBwExercise) {
+    html += `
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-value">${prMaxReps}</div>
+          <div class="stat-label">Best Set (reps)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">${prTotalReps}</div>
+          <div class="stat-label">Most Reps (session)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">${avgRPE > 0 ? avgRPE.toFixed(1) : '—'}</div>
+          <div class="stat-label">Avg RPE</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">${totalSessions}</div>
+          <div class="stat-label">Sessions</div>
+        </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value">${prE1rm} kg</div>
-        <div class="stat-label">Est. 1RM PR</div>
+    `;
+  } else {
+    html += `
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-value">${prWeight} kg</div>
+          <div class="stat-label">Weight PR</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">${prE1rm} kg</div>
+          <div class="stat-label">Est. 1RM PR</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">${formatNumber(prVolume)}</div>
+          <div class="stat-label">Volume PR (kg)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">${avgRPE > 0 ? avgRPE.toFixed(1) : '—'}</div>
+          <div class="stat-label">Avg RPE</div>
+        </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value">${formatNumber(prVolume)}</div>
-        <div class="stat-label">Volume PR (kg)</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value">${avgRPE > 0 ? avgRPE.toFixed(1) : '—'}</div>
-        <div class="stat-label">Avg RPE</div>
-      </div>
-    </div>
-  `;
+    `;
+  }
 
   // Progression suggestion in progress view
   const progressSuggestion = getProgressionSuggestion(selectedProgressExercise);
@@ -1844,25 +1971,38 @@ function renderProgress() {
   html += `
     <div style="display:flex;gap:8px;margin-bottom:16px;">
       <button class="btn btn-secondary btn-sm" onclick="openExerciseSettings('${esc(selectedProgressExercise)}')" style="flex:1;">
-        ⚙️ Increment: ${exSettings.increment}kg · Target: ${exSettings.targetReps} reps
+        ⚙️ ${isBwExercise ? 'Bodyweight' : 'Increment: ' + exSettings.increment + 'kg'} · Target: ${exSettings.targetReps} reps
       </button>
     </div>
   `;
 
-  html += `
-    <div class="chart-container">
-      <div class="chart-title">Estimated 1RM (kg) <span style="font-weight:400;font-size:9px;color:var(--text-muted);text-transform:none;letter-spacing:0;">— combines weight & reps into one number</span></div>
-      <canvas id="e1rm-chart" height="200"></canvas>
-    </div>
-    <div class="chart-container">
-      <div class="chart-title">Max Weight (kg)</div>
-      <canvas id="weight-chart" height="200"></canvas>
-    </div>
-    <div class="chart-container">
-      <div class="chart-title">Session Volume (kg)</div>
-      <canvas id="volume-chart" height="200"></canvas>
-    </div>
-  `;
+  if (isBwExercise) {
+    html += `
+      <div class="chart-container">
+        <div class="chart-title">Max Reps per Set</div>
+        <canvas id="maxreps-chart" height="200"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Total Reps per Session</div>
+        <canvas id="totalreps-chart" height="200"></canvas>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="chart-container">
+        <div class="chart-title">Estimated 1RM (kg) <span style="font-weight:400;font-size:9px;color:var(--text-muted);text-transform:none;letter-spacing:0;">— combines weight & reps into one number</span></div>
+        <canvas id="e1rm-chart" height="200"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Max Weight (kg)</div>
+        <canvas id="weight-chart" height="200"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Session Volume (kg)</div>
+        <canvas id="volume-chart" height="200"></canvas>
+      </div>
+    `;
+  }
 
   el.innerHTML = html;
 
@@ -1892,10 +2032,13 @@ function getExerciseHistory(name) {
         let maxWeight = 0, volume = 0, rpeSum = 0, rpeCount = 0;
         let bestSet = null;
         let bestE1rm = 0;
+        let totalReps = 0, maxReps = 0;
         for (const s of (e.sets || [])) {
           const wt = parseFloat(s.weight) || 0;
           const rp = parseInt(s.reps) || 0;
           volume += wt * rp;
+          totalReps += rp;
+          if (rp > maxReps) maxReps = rp;
           if (wt > maxWeight) maxWeight = wt;
           if (s.rpe) { rpeSum += parseFloat(s.rpe); rpeCount++; }
           // Epley e1RM formula
@@ -1912,7 +2055,9 @@ function getExerciseHistory(name) {
           e1rm: bestE1rm,
           avgRpe: rpeCount > 0 ? rpeSum / rpeCount : 0,
           bestSet,
-          sets: e.sets.length
+          sets: e.sets.length,
+          totalReps,
+          maxReps
         });
       }
     }
@@ -1946,7 +2091,47 @@ function renderCharts(dataPoints) {
   activeCharts.forEach(c => c.destroy());
   activeCharts = [];
 
-  // e1RM chart (primary — this is the best single metric for progress)
+  // ── BODYWEIGHT CHARTS ──
+  const mrCtx = document.getElementById('maxreps-chart');
+  if (mrCtx) {
+    activeCharts.push(new Chart(mrCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: dataPoints.map(d => d.maxReps),
+          borderColor: '#fbbf24',
+          backgroundColor: '#fbbf2418',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 5,
+          pointBackgroundColor: '#fbbf24',
+          borderWidth: 2.5
+        }]
+      },
+      options: chartDefaults
+    }));
+  }
+
+  const trCtx = document.getElementById('totalreps-chart');
+  if (trCtx) {
+    activeCharts.push(new Chart(trCtx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: dataPoints.map(d => d.totalReps),
+          backgroundColor: '#6ee7b744',
+          borderColor: '#6ee7b7',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: chartDefaults
+    }));
+  }
+
+  // ── WEIGHTED CHARTS ──
   const eCtx = document.getElementById('e1rm-chart');
   if (eCtx) {
     activeCharts.push(new Chart(eCtx, {
@@ -1983,7 +2168,6 @@ function renderCharts(dataPoints) {
     }));
   }
 
-  // Weight chart
   const wCtx = document.getElementById('weight-chart');
   if (wCtx) {
     activeCharts.push(new Chart(wCtx, {
@@ -2005,7 +2189,6 @@ function renderCharts(dataPoints) {
     }));
   }
 
-  // Volume chart
   const vCtx = document.getElementById('volume-chart');
   if (vCtx) {
     activeCharts.push(new Chart(vCtx, {
