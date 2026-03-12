@@ -510,6 +510,34 @@ canvas { max-width: 100%; }
 }
 
 /* ── EXERCISE CATEGORIES ── */
+.time-filter {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  border: 1px solid var(--border);
+}
+.time-filter-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s;
+  min-height: 40px;
+}
+.time-filter-btn.active {
+  background: var(--accent);
+  color: #0a0a0f;
+}
+
 .category-filters {
   display: flex;
   gap: 6px;
@@ -1823,6 +1851,7 @@ async function deleteWorkout(id, idx) {
 // ════════════════════════════════════════════════════════════
 let selectedProgressExercise = '';
 let selectedProgressCategory = 'all';
+let selectedTimePeriod = '3m'; // '1m', '3m', '6m', 'all'
 
 function renderProgress() {
   const el = document.getElementById('progress-content');
@@ -1974,6 +2003,12 @@ function renderProgress() {
         ⚙️ ${isBwExercise ? 'Bodyweight' : 'Increment: ' + exSettings.increment + 'kg'} · Target: ${exSettings.targetReps} reps
       </button>
     </div>
+    <div class="time-filter">
+      <button class="time-filter-btn ${selectedTimePeriod === '1m' ? 'active' : ''}" onclick="selectTimePeriod('1m')">1M</button>
+      <button class="time-filter-btn ${selectedTimePeriod === '3m' ? 'active' : ''}" onclick="selectTimePeriod('3m')">3M</button>
+      <button class="time-filter-btn ${selectedTimePeriod === '6m' ? 'active' : ''}" onclick="selectTimePeriod('6m')">6M</button>
+      <button class="time-filter-btn ${selectedTimePeriod === 'all' ? 'active' : ''}" onclick="selectTimePeriod('all')">All</button>
+    </div>
   `;
 
   if (isBwExercise) {
@@ -1990,12 +2025,12 @@ function renderProgress() {
   } else {
     html += `
       <div class="chart-container">
-        <div class="chart-title">Estimated 1RM (kg) <span style="font-weight:400;font-size:9px;color:var(--text-muted);text-transform:none;letter-spacing:0;">— combines weight & reps into one number</span></div>
-        <canvas id="e1rm-chart" height="200"></canvas>
+        <div class="chart-title">Weight per Set (kg) <span style="font-weight:400;font-size:9px;color:var(--text-muted);text-transform:none;letter-spacing:0;">— each bar is a set</span></div>
+        <canvas id="sets-chart" height="220"></canvas>
       </div>
       <div class="chart-container">
-        <div class="chart-title">Max Weight (kg)</div>
-        <canvas id="weight-chart" height="200"></canvas>
+        <div class="chart-title">Estimated 1RM (kg) <span style="font-weight:400;font-size:9px;color:var(--text-muted);text-transform:none;letter-spacing:0;">— combines weight & reps</span></div>
+        <canvas id="e1rm-chart" height="200"></canvas>
       </div>
       <div class="chart-container">
         <div class="chart-title">Session Volume (kg)</div>
@@ -2006,8 +2041,9 @@ function renderProgress() {
 
   el.innerHTML = html;
 
-  // Render charts
-  renderCharts(dataPoints);
+  // Filter data by time period
+  const filteredData = filterByTimePeriod(dataPoints);
+  renderCharts(filteredData, isBwExercise);
 }
 
 function selectProgressExercise(name) {
@@ -2019,6 +2055,20 @@ function selectProgressCategory(cat) {
   selectedProgressCategory = cat;
   selectedProgressExercise = ''; // reset selection to pick first in new filter
   renderProgress();
+}
+
+function selectTimePeriod(period) {
+  selectedTimePeriod = period;
+  renderProgress();
+}
+
+function filterByTimePeriod(dataPoints) {
+  if (selectedTimePeriod === 'all') return dataPoints;
+  const now = new Date();
+  const months = { '1m': 1, '3m': 3, '6m': 6 };
+  const cutoff = new Date(now);
+  cutoff.setMonth(cutoff.getMonth() - (months[selectedTimePeriod] || 3));
+  return dataPoints.filter(d => new Date(d.date) >= cutoff);
 }
 
 function getExerciseHistory(name) {
@@ -2057,7 +2107,9 @@ function getExerciseHistory(name) {
           bestSet,
           sets: e.sets.length,
           totalReps,
-          maxReps
+          maxReps,
+          setWeights: (e.sets || []).map(s => parseFloat(s.weight) || 0),
+          setReps: (e.sets || []).map(s => parseInt(s.reps) || 0)
         });
       }
     }
@@ -2065,7 +2117,7 @@ function getExerciseHistory(name) {
   return points;
 }
 
-function renderCharts(dataPoints) {
+function renderCharts(dataPoints, isBwExercise) {
   const labels = dataPoints.map(d => {
     const dt = new Date(d.date);
     return dt.toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
@@ -2090,6 +2142,8 @@ function renderCharts(dataPoints) {
   // Destroy previous charts
   activeCharts.forEach(c => c.destroy());
   activeCharts = [];
+
+  if (dataPoints.length === 0) return;
 
   // ── BODYWEIGHT CHARTS ──
   const mrCtx = document.getElementById('maxreps-chart');
@@ -2132,6 +2186,59 @@ function renderCharts(dataPoints) {
   }
 
   // ── WEIGHTED CHARTS ──
+
+  // Grouped bar chart: each session shows individual set weights
+  const setsCtx = document.getElementById('sets-chart');
+  if (setsCtx) {
+    // Find the max number of sets across all displayed sessions
+    const maxSets = Math.max(...dataPoints.map(d => d.setWeights.length), 1);
+    const setColors = ['#6ee7b7', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#34d399', '#f87171'];
+    
+    const datasets = [];
+    for (let si = 0; si < maxSets; si++) {
+      datasets.push({
+        label: `Set ${si + 1}`,
+        data: dataPoints.map(d => d.setWeights[si] || null),
+        backgroundColor: (setColors[si % setColors.length]) + '99',
+        borderColor: setColors[si % setColors.length],
+        borderWidth: 1,
+        borderRadius: 3,
+        barPercentage: 0.85,
+        categoryPercentage: 0.8
+      });
+    }
+
+    activeCharts.push(new Chart(setsCtx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        ...chartDefaults,
+        plugins: {
+          legend: { 
+            display: maxSets > 1,
+            labels: { 
+              color: '#555568', 
+              font: { family: 'JetBrains Mono', size: 10 },
+              boxWidth: 12,
+              padding: 8
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const dp = dataPoints[ctx.dataIndex];
+                const si = ctx.datasetIndex;
+                const reps = dp.setReps[si];
+                return `Set ${si+1}: ${ctx.parsed.y} kg${reps ? ' × ' + reps + ' reps' : ''}`;
+              }
+            }
+          }
+        }
+      }
+    }));
+  }
+
+  // e1RM chart
   const eCtx = document.getElementById('e1rm-chart');
   if (eCtx) {
     activeCharts.push(new Chart(eCtx, {
@@ -2168,27 +2275,7 @@ function renderCharts(dataPoints) {
     }));
   }
 
-  const wCtx = document.getElementById('weight-chart');
-  if (wCtx) {
-    activeCharts.push(new Chart(wCtx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: dataPoints.map(d => d.maxWeight),
-          borderColor: '#6ee7b7',
-          backgroundColor: '#6ee7b722',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 4,
-          pointBackgroundColor: '#6ee7b7',
-          borderWidth: 2
-        }]
-      },
-      options: chartDefaults
-    }));
-  }
-
+  // Volume chart
   const vCtx = document.getElementById('volume-chart');
   if (vCtx) {
     activeCharts.push(new Chart(vCtx, {
